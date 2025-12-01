@@ -14,11 +14,13 @@ public class SecDataExtractionService {
     private final Form8KExtractorService form8KExtractorService;
     private  final Form10QExtractorService form10QExtractorService;
     private final Form10KExtractorService form10KExtractorService;
+    private final SecDef14AExtractorService secDef14AExtractorService;
 
-    public SecDataExtractionService(Form8KExtractorService form8KExtractorService, Form10QExtractorService form10QExtractorService, Form10KExtractorService form10KExtractorService) {
+    public SecDataExtractionService(Form8KExtractorService form8KExtractorService, Form10QExtractorService form10QExtractorService, Form10KExtractorService form10KExtractorService, SecDef14AExtractorService secDef14AExtractorService) {
         this.form8KExtractorService = form8KExtractorService;
         this.form10QExtractorService = form10QExtractorService;
         this.form10KExtractorService = form10KExtractorService;
+        this.secDef14AExtractorService = secDef14AExtractorService;
     }
 
     public String extractFilingSourceUrl(String fullUrl, String formType, String itemNo) throws IOException {
@@ -32,6 +34,9 @@ public class SecDataExtractionService {
         }
         if (formType.equals("10-k")) {
             response =form10KExtractorService.DataOf10KExtracted(html, itemNo);
+        }
+        if (formType.equals("def14A")) {
+            response = secDef14AExtractorService.extractSections(html);
         }
        return response;
     }
