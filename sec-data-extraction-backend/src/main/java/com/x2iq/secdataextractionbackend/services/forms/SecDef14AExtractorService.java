@@ -1,12 +1,17 @@
 package com.x2iq.secdataextractionbackend.services.forms;
 
 
+import com.gargoylesoftware.htmlunit.HttpMethod;
+import com.gargoylesoftware.htmlunit.WebClient;
+import com.gargoylesoftware.htmlunit.WebRequest;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 //import javax.annotation.PostConstruct;
+import java.io.IOException;
+import java.net.URL;
 import java.util.*;
 
 @Service
@@ -67,16 +72,16 @@ public class SecDef14AExtractorService {
             "FEES PAID TO INDEPENDENT REGISTERED PUBLIC ACCOUNTING FIRM",
             "FEES OF INDEPENDENT REGISTERED PUBLIC ACCOUNTING FIRM",
             "COMPANY’S INDEPENDENT REGISTERED PUBLIC ACCOUNTING FIRM",
-            "COMPANY'S INDEPENDENT REGISTERED PUBLIC ACCOUNTING FIRM",
+            "THE COMPANY'S INDEPENDENT REGISTERED PUBLIC ACCOUNTING FIRM",
             "INDEPENDENT REGISTERED PUBLIC ACCOUNTING FIRM",
             "AUDIT AND NON-AUDIT FEES"
     ));
 
     // Optional: treat PAY VS PERFORMANCE as its own canonical section
     private static final Set<String> PAY_VS_PERFORMANCE_HEADINGS = new HashSet<>(Arrays.asList(
-            "PAY VERSUS PERFORMANCE",
-            "PAY VS. PERFORMANCE",
-            "PAY VERSUS PERFORMANCE TABLE"
+//            "PAY VERSUS PERFORMANCE",
+//            "PAY VS. PERFORMANCE",
+//            "PAY VERSUS PERFORMANCE TABLE"
     ));
 
 
@@ -98,8 +103,30 @@ public class SecDef14AExtractorService {
     // =========================
     // PUBLIC API
     // =========================
-
+public String sendGetRequestWebClient(String url) throws IOException {
+    String response;
+    try (WebClient webClient = new WebClient()) {
+        webClient.getOptions().setUseInsecureSSL(true);
+        webClient.getOptions().setCssEnabled(false);
+        webClient.getOptions().setThrowExceptionOnFailingStatusCode(false);
+        webClient.getOptions().setPrintContentOnFailingStatusCode(false);
+        webClient.getOptions().setJavaScriptEnabled(false);
+        webClient.waitForBackgroundJavaScript(10000);
+        webClient.getOptions().setTimeout(60000);
+        webClient.getOptions().setThrowExceptionOnScriptError(false);
+        WebRequest requestSettings = new WebRequest(new URL(url), HttpMethod.GET);
+        response = webClient.getPage(requestSettings).getWebResponse().getContentAsString();
+    }
+    return response;
+}
     public String extractSections(String html) {
+        try {
+            html = sendGetRequestWebClient(html); // here 'html' is actually the URL
+        } catch (IOException e) {
+            logger.error(e.getMessage(), e);
+            return ""; // bail out if fetch fails
+        }
+
         Map<String, String> sections = new LinkedHashMap<>();
         if (html == null || html.isEmpty()) return "";
 
@@ -233,17 +260,27 @@ public class SecDef14AExtractorService {
             return "";
         }
 
-        // 5) Merge all sections into a single string
+        // 5) Merge all sections into a single string WITH section name and gap
         StringBuilder merged = new StringBuilder();
-        for (String body : sections.values()) {
+        for (Map.Entry<String, String> entry : sections.entrySet()) {
+            String key = entry.getKey();       // e.g. "executive_compensation"
+            String body = entry.getValue();
+
+            // Human-readable section title
+            String title = key.toUpperCase().replace('_', ' '); // EXECUTIVE COMPENSATION
+
             if (merged.length() > 0) {
-                merged.append("\n\n"); // separator between sections
+                // gap between sections
+                merged.append("\n\n----------------------------------------\n\n");
             }
+
+            merged.append("=== ").append(title).append(" ===").append("\n\n");
             merged.append(body);
         }
 
         return merged.toString().trim();
     }
+
 
 
     // Backwards-compatible signature
