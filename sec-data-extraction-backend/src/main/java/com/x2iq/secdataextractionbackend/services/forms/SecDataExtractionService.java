@@ -36,6 +36,10 @@ public class SecDataExtractionService {
             response =form10KExtractorService.DataOf10KExtracted(html, itemNo);
         }
 
+        if (formType.equals("def14a")) {
+            response = secDef14AExtractorService.extractSections(html, itemNo);
+        }
+
        return response;
     }
 
